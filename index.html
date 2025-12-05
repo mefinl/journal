@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Онлайн журнал оценок</title>
+
+    <!-- SheetJS для чтения Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ===== НОВАЯ ПАЛИТРА, ФОН И БАЗОВЫЙ СТИЛЬ ===== */
+
+        :root {
+            --primary: #6c4ad0; /* основной фиолетовый */
+            --primary-dark: #5433a6;
+            --accent: #00b8a9; /* бирюза */
+            --bg-page: #f5f4ff;
+            --bg-card: #ffffff;
+            --border: #dad6ff;
+            --text-main: #202233;
+            --text-muted: #6c7285;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            color: var(--text-main);
+            /* градиентный фон + мягкие пятна */
+            background: radial-gradient(circle at 10% 20%, rgba(0,184,169,0.12) 0, transparent 55%), radial-gradient(circle at 90% 80%, rgba(108,74,208,0.14) 0, transparent 55%), linear-gradient(135deg, #fdfbff 0%, #f5f4ff 50%, #f0f9ff 100%);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes subtleGlow {
+            from {
+                box-shadow: 0 0 0 rgba(108,74,208,0.35);
+            }
+
+            to {
+                box-shadow: 0 0 12px rgba(108,74,208,0.45);
+            }
+        }
+
+        /* ===== ШАПКА ===== */
+
+        header {
+            background: linear-gradient(135deg, #5433a6, #6c4ad0, #00b8a9);
+            color: white;
+            padding: 16px 26px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+            header h1 {
+                margin: 0;
+                font-size: 22px;
+                letter-spacing: 0.5px;
+            }
+
+        /* ===== ВКЛАДКИ ===== */
+
+        #tabs {
+            display: flex;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid rgba(108,74,208,0.12);
+        }
+
+        .tab-btn {
+            padding: 12px 22px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-right: 1px solid rgba(108,74,208,0.08);
+            position: relative;
+            transition: background 0.2s, color 0.2s;
+        }
+
+            .tab-btn:hover {
+                background: rgba(108,74,208,0.06);
+                color: var(--primary);
+            }
+
+            .tab-btn.active {
+                background: #ffffff;
+                color: var(--primary);
+            }
+
+                .tab-btn.active::after {
+                    content: "";
+                    position: absolute;
+                    left: 10%;
+                    right: 10%;
+                    bottom: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, var(--primary), var(--accent));
+                    border-radius: 3px 3px 0 0;
+                }
+
+        /* ===== КОНТЕНТ ВКЛАДОК ===== */
+
+        .tab-content {
+            display: none;
+            padding: 22px;
+        }
+
+            .tab-content.active {
+                display: block;
+                animation: fadeInUp 0.25s ease-out;
+            }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        /* ===== КАРТОЧКИ ===== */
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 18px 20px;
+            border: 1px solid rgba(108,74,208,0.18);
+            box-shadow: 0 8px 20px rgba(96,76,210,0.10);
+            margin-bottom: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+            .card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 14px 30px rgba(96,76,210,0.18);
+            }
+
+        /* ===== ФОРМЫ И КНОПКИ ===== */
+
+        label {
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        input, select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc9ff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            background: #fbfbff;
+        }
+
+            input:focus, select:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 0.16rem rgba(108,74,208,.35);
+                background: #ffffff;
+            }
+
+        button {
+            padding: 7px 18px;
+            border-radius: 999px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s, transform 0.12s, box-shadow 0.12s;
+            box-shadow: 0 4px 10px rgba(96,76,210,0.40);
+        }
+
+            button:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 14px rgba(96,76,210,0.55);
+            }
+
+            button:active {
+                transform: translateY(0);
+                box-shadow: 0 3px 8px rgba(96,76,210,0.40);
+            }
+
+            button.secondary {
+                background: linear-gradient(135deg, #6c7285, #44495a);
+                box-shadow: 0 4px 10px rgba(60,65,85,0.40);
+            }
+
+                button.secondary:hover {
+                    box-shadow: 0 6px 14px rgba(60,65,85,0.55);
+                }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            align-items: center;
+        }
+
+        .small {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ===== ТАБЛИЦЫ ===== */
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eef0ff;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        th {
+            background: linear-gradient(135deg, #f6f3ff, #f0f6ff);
+            font-weight: 600;
+            color: #484c66;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover td {
+            background: #f6f8ff;
+        }
+
+        td[contenteditable="true"] {
+            background: #fffdf6;
+            transition: background 0.2s;
+        }
+
+            td[contenteditable="true"]:focus-visible {
+                outline: none;
+                background: #fff4d6;
+                animation: subtleGlow 0.4s alternate 3;
+            }
+
+        /* ===== СТАТИСТИКА ===== */
+
+        .stats-current {
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(108,74,208,0.06);
+            border-left: 3px solid var(--primary);
+            border-radius: 6px;
+        }
+
+        .stats-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: radial-gradient(circle at 0 0, rgba(0,184,169,0.22), transparent 55%), #ffffff;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(108,74,208,0.22);
+            min-width: 160px;
+            flex: 1 1 160px;
+            box-shadow: 0 6px 16px rgba(96,76,210,0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+            .stat-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 28px rgba(96,76,210,0.25);
+            }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            margin-top: 4px;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* ===== ГРАФИКИ ===== */
+
+        .chart-container {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid rgba(108,74,208,0.20);
+            padding: 16px;
+            box-shadow: 0 8px 20px rgba(96,76,210,0.18);
+        }
+
+        /* ===== ЛОГОТИП СИБГУТИ ===== */
+
+        #sibguti-logo {
+            width: 140px;
+            margin-top: 15px;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+        }
+
+        @media (max-width: 768px) {
+            header {
+                text-align: center;
+            }
+
+            .tab-btn {
+                flex: 1 1 50%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Онлайн журнал оценок</h1>
+    </header>
+
+    <div id="tabs">
+        <button class="tab-btn active" data-tab="upload">Загрузка файла</button>
+        <button class="tab-btn" data-tab="journal">Журнал</button>
+        <button class="tab-btn" data-tab="stats-table">Статистика (таблица)</button>
+        <button class="tab-btn" data-tab="stats-chart">Статистика (график)</button>
+        <button class="tab-btn" data-tab="help">Помощь</button>
+        <button class="tab-btn" data-tab="about">О программе</button>
+    </div>
+
+    <!-- Вкладка ЗАГРУЗКА -->
+    <div id="upload" class="tab-content active">
+        <h2>Загрузка оценок из файла</h2>
+        <div class="section card">
+            <p><b>Поддерживаемые форматы:</b> Excel (.xlsx), CSV, TXT (.txt).</p>
+            <div class="flex-row">
+                <label for="fileInput">Выберите файл журнала:</label>
+                <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.txt">
+                <button onclick="clearData()" class="secondary">Очистить текущие данные</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Просмотр загруженных данных</h3>
+            <div id="uploadTableContainer"></div>
+        </div>
+    </div>
+
+    <!-- Вкладка ЖУРНАЛ -->
+    <div id="journal" class="tab-content">
+        <h2>Журнал оценок (создание и редактирование)</h2>
+
+        <div class="section card">
+            <h3>Добавление записи</h3>
+            <div class="flex-row">
+                <label>
+                    ФИО:
+                    <input type="text" id="addName" size="20">
+                </label>
+                <label>
+                    Класс:
+                    <input type="text" id="addClass" size="5" placeholder="9a">
+                </label>
+                <label>
+                    Предмет:
+                    <input type="text" id="addSubject" size="10" placeholder="Математика">
+                </label>
+                <label>
+                    Оценка:
+                    <input type="number" id="addGrade" min="1" max="5" step="1" style="width:60px;">
+                </label>
+                <button onclick="addRecord()">Добавить запись</button>
+            </div>
+        </div>
+
+        <div class="section card">
+            <h3>Фильтр журнала</h3>
+            <div class="flex-row">
+                <label>
+                    Класс:
+                    <select id="journalClassFilter" onchange="onJournalFilterChange()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <label>
+                    Предмет:
+                    <select id="journalSubjectFilter" onchange="onJournalFilterChange()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <button class="secondary" onclick="resetJournalFilters()">Сбросить фильтр</button>
+            </div>
+            <div class="small" id="journalFilterInfo">
+                Показаны записи: все классы, все предметы.
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Текущий журнал</h3>
+            <div class="small">Редактируйте ячейки напрямую. Для удаления строки нажмите ✖.</div>
+            <div id="journalTableContainer"></div>
+            <button style="margin-top:10px;" onclick="downloadCSV()">Сохранить журнал в CSV</button>
+        </div>
+    </div>
+
+    <!-- Вкладка СТАТИСТИКА (ТАБЛИЦА) -->
+    <div id="stats-table" class="tab-content">
+        <h2>Статистика по успеваемости</h2>
+
+        <div class="section card">
+            <h3>1. Выбор класса и предмета</h3>
+            <div class="flex-row">
+                <label>
+                    Класс:
+                    <select id="filterClass" onchange="updateAllStats()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <label>
+                    Предмет:
+                    <select id="filterSubject" onchange="updateAllStats()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <button onclick="updateAllStats()">Показать статистику</button>
+            </div>
+            <div id="statsCurrentSelection" class="small stats-current">
+                Пока ничего не выбрано – показываются все классы и все предметы.
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>2. Краткая сводка</h3>
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-label">Всего оценок</div>
+                    <div class="stat-value" id="statCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Средняя оценка</div>
+                    <div class="stat-value" id="statAvg">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Медиана</div>
+                    <div class="stat-value" id="statMedian">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>3. Подробные показатели</h3>
+            <div id="statsSummaryContainer"></div>
+        </div>
+
+        <div class="section">
+            <h3>4. Распределение оценок</h3>
+            <div id="statsGradesContainer"></div>
+        </div>
+    </div>
+
+    <!-- Вкладка СТАТИСТИКА (ГРАФИК) -->
+    <div id="stats-chart" class="tab-content">
+        <h2>Статистика в графическом виде</h2>
+        <div class="section card">
+            <div class="flex-row">
+                <label>
+                    Класс:
+                    <select id="chartClass" onchange="updateChart()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <label>
+                    Предмет:
+                    <select id="chartSubject" onchange="updateChart()">
+                        <option value="">Все</option>
+                    </select>
+                </label>
+                <button onclick="updateChart()">Построить графики</button>
+            </div>
+        </div>
+
+        <div class="section" style="height:340px;">
+            <h3>Распределение оценок (количество и %)</h3>
+            <div class="chart-container" style="height:300px;">
+                <canvas id="gradesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section" style="height:260px;">
+            <h3>Средняя оценка и медиана</h3>
+            <div class="chart-container" style="height:220px;">
+                <canvas id="summaryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Вкладка ПОМОЩЬ -->
+    <div id="help" class="tab-content">
+        <h2>Помощь</h2>
+        <div class="card">
+            <ol>
+                <li>Выберите файл на вкладке «Загрузка файла».</li>
+                <li>Проверьте таблицу ниже – это данные из файла.</li>
+                <li>Перейдите на вкладку «Журнал» для редактирования и добавления записей.</li>
+                <li>Используйте фильтр журнала для просмотра конкретного класса и предмета.</li>
+                <li>Вкладки «Статистика» показывают показатели и графики по выбранному классу и предмету.</li>
+                <li>Кнопка «Сохранить журнал в CSV» сохраняет текущий журнал в файл.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Вкладка О ПРОГРАММЕ -->
+    <div id="about" class="tab-content">
+        <h2>О программе</h2>
+        <div class="card">
+            <p>Учебное веб-приложение «Журнал оценок» на HTML + JavaScript.</p>
+            <p>Поддерживает загрузку из Excel/CSV/TXT, редактирование журнала, сохранение и вывод статистики.</p>
+            <p>Автор: Чиглин Павел Александрович</p>
+            <p>Контакты: chiglin1pa@gmail.com</p>
+
+            <div style="margin-top:15px; text-align:center;">
+                <img id="sibguti-logo" src="sibguti-logo.png" alt="Логотип СибГУТИ">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- ДАННЫЕ ----------
+        let journalData = [];
+
+        const uploadTableContainer = document.getElementById('uploadTableContainer');
+        const journalTableContainer = document.getElementById('journalTableContainer');
+        const filterClassSelect = document.getElementById('filterClass');
+        const filterSubjectSelect = document.getElementById('filterSubject');
+        const chartClassSelect = document.getElementById('chartClass');
+        const chartSubjectSelect = document.getElementById('chartSubject');
+        const statsSummaryContainer = document.getElementById('statsSummaryContainer');
+        const statsGradesContainer = document.getElementById('statsGradesContainer');
+
+        const journalClassFilterSelect = document.getElementById('journalClassFilter');
+        const journalSubjectFilterSelect = document.getElementById('journalSubjectFilter');
+        const journalFilterInfo = document.getElementById('journalFilterInfo');
+
+        let gradesChart = null;
+        let summaryChart = null;
+
+        // ---------- Вкладки ----------
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ---------- Загрузка файла ----------
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            const name = file.name.toLowerCase();
+
+            if (name.endsWith('.csv') || name.endsWith('.txt')) {
+                reader.onload = function (evt) {
+                    const buffer = evt.target.result;
+                    let text;
+                    try {
+                        text = new TextDecoder('utf-8').decode(buffer);
+                        const bad = (text.match(/�/g) || []).length;
+                        if (bad > 5) {
+                            text = new TextDecoder('windows-1251').decode(buffer);
+                        }
+                    } catch (err) {
+                        text = new TextDecoder('windows-1251').decode(buffer);
+                    }
+                    const data = parseCSV(text);
+                    fillJournalFromArray(data);
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.onload = function (evt) {
+                    const data = new Uint8Array(evt.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheet = wb.SheetNames[0];
+                    const ws = wb.Sheets[sheet];
+                    const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                    fillJournalFromArray(json);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function parseCSV(text) {
+            const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+            return lines.map(line => {
+                const delimiter = line.indexOf(';') !== -1 ? ';' : ',';
+                return line.split(delimiter).map(v => v.trim());
+            });
+        }
+
+        // ---------- Импорт данных из массива ----------
+        function fillJournalFromArray(arr) {
+            if (!arr || arr.length <= 1) return;
+
+            const headerRow = arr[0] || [];
+            const headerNorm = headerRow.map(h => h.toString().trim());
+            const headerLower = headerNorm.map(h => h.toLowerCase());
+
+            const subjectMap = {
+                'informatics': 'Информатика',
+                'physics': 'Физика',
+                'mathemathics': 'Математика',
+                'mathematics': 'Математика',
+                'literature': 'Литература',
+                'music': 'Музыка'
+            };
+
+            const hasSubjectCol = headerLower.some(h => h.includes('предмет') || h === 'subject');
+            const hasGradeCol = headerLower.some(h => h.includes('оцен') || h === 'grade' || h === 'mark');
+            const hasDateCol = headerLower.some(h => h.includes('дата') || h === 'date');
+
+            // длинный формат
+            if (hasSubjectCol || hasGradeCol || hasDateCol) {
+                let idxName = headerLower.findIndex(h => h.includes('фио') || h.includes('имя') || h === 'name');
+                let idxClass = headerLower.findIndex(h => h.includes('класс') || h === 'class');
+                let idxSubject = headerLower.findIndex(h => h.includes('предмет') || h === 'subject');
+                let idxGrade = headerLower.findIndex(h => h.includes('оцен') || h === 'grade' || h === 'mark');
+                let idxDate = headerLower.findIndex(h => h.includes('дата') || h === 'date');
+
+                if (idxName < 0 && headerRow.length > 0) idxName = 0;
+                if (idxClass < 0 && headerRow.length > 1) idxClass = 1;
+                if (idxSubject < 0 && headerRow.length > 2) idxSubject = 2;
+                if (idxGrade < 0 && headerRow.length > 3) idxGrade = 3;
+                if (idxDate < 0 && headerRow.length > 4) idxDate = 4;
+
+                journalData = [];
+                for (let i = 1; i < arr.length; i++) {
+                    const row = arr[i];
+                    if (!row || row.length === 0) continue;
+
+                    const subjOrig = idxSubject >= 0 ? (row[idxSubject] || '').toString() : '';
+                    const subjKey = subjOrig.toLowerCase().replace(/\s+/g, '');
+                    const subjName = subjectMap[subjKey] || subjOrig;
+
+                    const gradeVal = idxGrade >= 0 ? parseFloat(row[idxGrade]) : NaN;
+
+                    const record = {
+                        name: idxName >= 0 ? (row[idxName] || '').toString() : '',
+                        class: idxClass >= 0 ? (row[idxClass] || '').toString() : '',
+                        subject: subjName,
+                        grade: isNaN(gradeVal) ? '' : gradeVal,
+                        date: idxDate >= 0 ? (row[idxDate] || '').toString() : ''
+                    };
+
+                    if (record.name || record.class || record.subject || record.grade) {
+                        journalData.push(record);
+                    }
+                }
+            }
+            // широкий формат
+            else {
+                let idxName = headerLower.findIndex(h => h.includes('фио') || h.includes('имя') || h === 'name');
+                let idxClass = headerLower.findIndex(h => h.includes('класс') || h === 'class');
+
+                if (idxName < 0 && headerRow.length > 0) idxName = 0;
+                if (idxClass < 0 && headerRow.length > 1) idxClass = 1;
+
+                const subjectColumns = [];
+                for (let j = 0; j < headerRow.length; j++) {
+                    if (j === idxName || j === idxClass) continue;
+                    const subjOrig = headerNorm[j];
+                    if (!subjOrig) continue;
+                    const subjKey = subjOrig.toLowerCase().replace(/\s+/g, '');
+                    const subjName = subjectMap[subjKey] || subjOrig;
+                    subjectColumns.push({ index: j, name: subjName });
+                }
+
+                journalData = [];
+                for (let i = 1; i < arr.length; i++) {
+                    const row = arr[i];
+                    if (!row || row.length === 0) continue;
+
+                    const name = row[idxName] ? row[idxName].toString() : '';
+                    const cls = row[idxClass] ? row[idxClass].toString() : '';
+                    if (!name && !cls) continue;
+
+                    subjectColumns.forEach(subj => {
+                        const raw = row[subj.index];
+                        if (raw === undefined || raw === null || raw === '') return;
+                        const grade = parseFloat(raw);
+                        if (isNaN(grade)) return;
+
+                        journalData.push({
+                            name: name,
+                            class: cls,
+                            subject: subj.name,
+                            grade: grade,
+                            date: ''
+                        });
+                    });
+                }
+            }
+
+            renderAllTables();
+            updateFilters();
+            updateAllStats();
+            updateChart();
+        }
+
+        // ---------- Таблицы ----------
+        function renderAllTables() {
+            renderTable(uploadTableContainer, false, '', '');
+
+            const clsFilter = journalClassFilterSelect ? journalClassFilterSelect.value : '';
+            const subjFilter = journalSubjectFilterSelect ? journalSubjectFilterSelect.value : '';
+            renderTable(journalTableContainer, true, clsFilter, subjFilter);
+
+            updateJournalFilterInfo();
+        }
+
+        function renderTable(container, editable, classFilter, subjectFilter) {
+            if (!journalData.length) {
+                container.innerHTML = '<p class="small">Данные отсутствуют.</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            html += '<th>№</th><th>ФИО</th><th>Класс</th><th>Предмет</th><th>Оценка</th>';
+            if (editable) html += '<th>Удалить</th>';
+            html += '</tr></thead><tbody>';
+
+            let rowNumber = 0;
+
+            journalData.forEach((rec, index) => {
+                if (classFilter && rec.class !== classFilter) return;
+                if (subjectFilter && rec.subject !== subjectFilter) return;
+
+                rowNumber++;
+                html += `<tr data-index="${index}">`;
+                html += `<td>${rowNumber}</td>`;
+                html += `<td ${editable ? 'contenteditable="true" data-field="name"' : ''}>${escapeHTML(rec.name)}</td>`;
+                html += `<td ${editable ? 'contenteditable="true" data-field="class"' : ''}>${escapeHTML(rec.class)}</td>`;
+                html += `<td ${editable ? 'contenteditable="true" data-field="subject"' : ''}>${escapeHTML(rec.subject)}</td>`;
+                html += `<td ${editable ? 'contenteditable="true" data-field="grade"' : ''}>${escapeHTML(rec.grade)}</td>`;
+                if (editable) {
+                    html += `<td><button onclick="deleteRecord(${index})">✖</button></td>`;
+                }
+                html += '</tr>';
+            });
+
+            if (rowNumber === 0) {
+                html += `<tr><td colspan="${editable ? 6 : 5}">Нет записей для выбранного фильтра.</td></tr>`;
+            }
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+
+            if (editable) {
+                container.querySelectorAll('td[contenteditable="true"]').forEach(td => {
+                    td.addEventListener('blur', onCellEdit);
+                });
+            }
+        }
+
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function onCellEdit(e) {
+            const td = e.target;
+            const tr = td.parentElement;
+            const index = parseInt(tr.dataset.index, 10);
+            const field = td.dataset.field;
+            let value = td.innerText.trim();
+
+            if (field === 'grade') {
+                value = value.replace(',', '.');
+                const num = parseFloat(value);
+                journalData[index][field] = isNaN(num) ? '' : num;
+            } else {
+                journalData[index][field] = value;
+            }
+            renderAllTables();
+            updateFilters();
+            updateAllStats();
+            updateChart();
+        }
+
+        // ---------- Добавление / удаление ----------
+        function addRecord() {
+            const name = document.getElementById('addName').value.trim();
+            const cls = document.getElementById('addClass').value.trim();
+            const subj = document.getElementById('addSubject').value.trim();
+            const gradeVal = document.getElementById('addGrade').value;
+
+            if (!name || !gradeVal) {
+                alert('Необходимо указать ФИО и оценку.');
+                return;
+            }
+            const grade = parseFloat(gradeVal);
+            journalData.push({
+                name: name,
+                class: cls,
+                subject: subj,
+                grade: isNaN(grade) ? '' : grade,
+                date: ''
+            });
+
+            document.getElementById('addName').value = '';
+            document.getElementById('addGrade').value = '';
+            renderAllTables();
+            updateFilters();
+            updateAllStats();
+            updateChart();
+        }
+
+        function deleteRecord(index) {
+            if (!confirm('Удалить эту запись?')) return;
+            journalData.splice(index, 1);
+            renderAllTables();
+            updateFilters();
+            updateAllStats();
+            updateChart();
+        }
+
+        function clearData() {
+            if (!confirm('Очистить весь журнал?')) return;
+            journalData = [];
+            renderAllTables();
+            updateFilters();
+            updateAllStats();
+            updateChart();
+        }
+
+        // ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ФИЛЬТРОВ ----------
+        function getUniqueValues(field) {
+            const set = new Set();
+            journalData.forEach(r => {
+                if (r[field]) set.add(r[field]);
+            });
+            return Array.from(set).sort();
+        }
+
+        function getSubjectsForClass(clsVal) {
+            const set = new Set();
+            journalData.forEach(r => {
+                if ((!clsVal || r.class === clsVal) && r.subject) {
+                    set.add(r.subject);
+                }
+            });
+            return Array.from(set).sort();
+        }
+
+        function refillSelect(select, values) {
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="">Все</option>';
+            values.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                select.appendChild(opt);
+            });
+            if (values.includes(current)) {
+                select.value = current;
+            }
+        }
+
+        function updateFilters() {
+            const classes = getUniqueValues('class');
+            const subjects = getUniqueValues('subject');
+
+            refillSelect(filterClassSelect, classes);
+            refillSelect(chartClassSelect, classes);
+            refillSelect(journalClassFilterSelect, classes);
+
+            refillSelect(filterSubjectSelect, subjects);
+            refillSelect(chartSubjectSelect, subjects);
+            refillSelect(journalSubjectFilterSelect, subjects);
+
+            updateJournalFilterInfo();
+        }
+
+        // ---------- Фильтрация ----------
+        function getFilteredData(clsVal, subjVal) {
+            return journalData.filter(r => {
+                return (!clsVal || r.class === clsVal) &&
+                    (!subjVal || r.subject === subjVal);
+            });
+        }
+
+        // ---------- Фильтр журнала ----------
+        function updateJournalFilterInfo() {
+            if (!journalFilterInfo) return;
+            const cls = journalClassFilterSelect.value || 'все классы';
+            const subj = journalSubjectFilterSelect.value || 'все предметы';
+            journalFilterInfo.textContent = `Показаны записи: ${cls}, ${subj}.`;
+        }
+
+        function onJournalFilterChange() {
+            const cls = journalClassFilterSelect.value;
+            const subjectsForClass = getSubjectsForClass(cls);
+            refillSelect(journalSubjectFilterSelect, subjectsForClass);
+            renderAllTables();
+        }
+
+        function resetJournalFilters() {
+            if (journalClassFilterSelect) {
+                journalClassFilterSelect.value = '';
+            }
+            if (journalSubjectFilterSelect) {
+                const allSubjects = getUniqueValues('subject');
+                refillSelect(journalSubjectFilterSelect, allSubjects);
+                journalSubjectFilterSelect.value = '';
+            }
+            renderAllTables();
+        }
+
+        // ---------- Статистика (ТАБЛИЦА) ----------
+        function updateAllStats() {
+            const cls = filterClassSelect.value;
+            const subjects = getSubjectsForClass(cls);
+            refillSelect(filterSubjectSelect, subjects);
+
+            const subj = filterSubjectSelect.value;
+            const data = getFilteredData(cls, subj);
+
+            const clsText = cls || 'все классы';
+            const subjText = subj || 'все предметы';
+            const selEl = document.getElementById('statsCurrentSelection');
+            if (selEl) selEl.textContent = `Сейчас отображаются оценки: ${clsText}, ${subjText}.`;
+
+            if (!data.length) {
+                statsSummaryContainer.innerHTML = '<p class="small">Нет данных для выбранных фильтров.</p>';
+                statsGradesContainer.innerHTML = '';
+                document.getElementById('statCount').textContent = '0';
+                document.getElementById('statAvg').textContent = '0.00';
+                document.getElementById('statMedian').textContent = '0.00';
+                return;
+            }
+
+            const grades = data.map(r => Number(r.grade)).filter(g => !isNaN(g));
+            const count = grades.length;
+            const avg = grades.reduce((a, b) => a + b, 0) / count;
+            const sorted = grades.slice().sort((a, b) => a - b);
+            const median = sorted.length % 2 === 1
+                ? sorted[(sorted.length - 1) / 2]
+                : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+
+            document.getElementById('statCount').textContent = count;
+            document.getElementById('statAvg').textContent = avg.toFixed(2);
+            document.getElementById('statMedian').textContent = median.toFixed(2);
+
+            const dist = { 2: 0, 3: 0, 4: 0, 5: 0 };
+            grades.forEach(g => {
+                const key = Math.round(g);
+                if (dist[key] !== undefined) dist[key]++;
+            });
+
+            const rowsSummary = [
+                ['Количество оценок', count],
+                ['Средняя оценка', avg.toFixed(2)],
+                ['Медиана', median.toFixed(2)]
+            ];
+
+            let htmlSummary = '<table><thead><tr><th>Показатель</th><th>Значение</th></tr></thead><tbody>';
+            rowsSummary.forEach(r => {
+                htmlSummary += `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`;
+            });
+            htmlSummary += '</tbody></table>';
+            statsSummaryContainer.innerHTML = htmlSummary;
+
+            const total = count || 1;
+            let htmlDist = '<table><thead><tr><th>Оценка</th><th>Количество</th><th>%</th></tr></thead><tbody>';
+            [2, 3, 4, 5].forEach(g => {
+                const c = dist[g];
+                const p = (c * 100 / total).toFixed(1);
+                htmlDist += `<tr><td>${g}</td><td>${c}</td><td>${p}</td></tr>`;
+            });
+            htmlDist += '</tbody></table>';
+            statsGradesContainer.innerHTML = htmlDist;
+        }
+
+        // ---------- Статистика (ГРАФИКИ) ----------
+        function updateChart() {
+            const cls = chartClassSelect.value;
+            const subjects = getSubjectsForClass(cls);
+            refillSelect(chartSubjectSelect, subjects);
+
+            const subj = chartSubjectSelect.value;
+            const data = getFilteredData(cls, subj);
+
+            if (!data.length) {
+                if (gradesChart) { gradesChart.destroy(); gradesChart = null; }
+                if (summaryChart) { summaryChart.destroy(); summaryChart = null; }
+                return;
+            }
+
+            const gradesArr = data.map(r => Number(r.grade)).filter(g => !isNaN(g));
+            if (!gradesArr.length) {
+                if (gradesChart) { gradesChart.destroy(); gradesChart = null; }
+                if (summaryChart) { summaryChart.destroy(); summaryChart = null; }
+                return;
+            }
+
+            const count = gradesArr.length;
+            const avg = gradesArr.reduce((a, b) => a + b, 0) / count;
+            const sorted = gradesArr.slice().sort((a, b) => a - b);
+            const median = sorted.length % 2 === 1
+                ? sorted[(sorted.length - 1) / 2]
+                : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+
+            const dist = { 2: 0, 3: 0, 4: 0, 5: 0 };
+            gradesArr.forEach(g => {
+                const key = Math.round(g);
+                if (dist[key] !== undefined) dist[key]++;
+            });
+
+            const labels = ['2', '3', '4', '5'];
+            const valuesCount = labels.map(l => dist[Number(l)]);
+            const valuesPct = valuesCount.map(c => c * 100 / count);
+
+            const ctx = document.getElementById('gradesChart').getContext('2d');
+            const grad = ctx.createLinearGradient(0, 0, 0, 300);
+            grad.addColorStop(0, 'rgba(108,74,208,0.9)');
+            grad.addColorStop(1, 'rgba(0,184,169,0.4)');
+
+            if (gradesChart) gradesChart.destroy();
+
+            gradesChart = new Chart(ctx, {
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Количество оценок',
+                            data: valuesCount,
+                            backgroundColor: grad,
+                            borderColor: 'rgba(84,51,166,1)',
+                            borderWidth: 1.5,
+                            borderRadius: 8,
+                            maxBarThickness: 80,
+                            yAxisID: 'yCount'
+                        },
+                        {
+                            type: 'line',
+                            label: '% от общего числа',
+                            data: valuesPct,
+                            borderColor: 'rgba(0,184,169,0.9)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.2,
+                            pointRadius: 3,
+                            yAxisID: 'yPct'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    if (ctx.dataset.yAxisID === 'yPct') {
+                                        return ' ' + ctx.parsed.y.toFixed(1) + ' %';
+                                    }
+                                    return ' ' + ctx.parsed.y + ' оценок';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        yCount: {
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        },
+                        yPct: {
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: v => v + '%' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('summaryChart').getContext('2d');
+            if (summaryChart) summaryChart.destroy();
+
+            summaryChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['Средняя', 'Медиана'],
+                    datasets: [{
+                        data: [avg, median],
+                        backgroundColor: ['rgba(108,74,208,0.85)', 'rgba(0,184,169,0.85)'],
+                        borderColor: ['rgba(84,51,166,1)', 'rgba(0,150,140,1)'],
+                        borderWidth: 1.5,
+                        borderRadius: 8,
+                        maxBarThickness: 80
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ' ' + ctx.parsed.y.toFixed(2)
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ---------- Сохранение журнала в CSV (без даты) ----------
+        function downloadCSV() {
+            if (!journalData.length) {
+                alert('Журнал пуст.');
+                return;
+            }
+            const header = ['ФИО', 'Класс', 'Предмет', 'Оценка'];
+            const rows = journalData.map(r => [
+                r.name,
+                r.class,
+                r.subject,
+                r.grade
+            ]);
+
+            let csv = header.join(';') + '\r\n';
+            rows.forEach(row => {
+                csv += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';') + '\r\n';
+            });
+
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'journal.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ---------- Стартовая инициализация ----------
+        renderAllTables();
+        updateFilters();
+        updateAllStats();
+        updateChart();
+    </script>
+</body>
+</html>
